@@ -285,7 +285,7 @@ int decode_audio(AudioState *audio, uint8_t *audio_buf, int buf_size, double *pt
   }
 }
 
-void audio_frame_queue(void *userdata, Uint8 *stream, int len) 
+void audio_callback(void *userdata, Uint8 *stream, int len) 
 {
 
   AudioState *audio = userdata;
@@ -351,7 +351,7 @@ int find_audio_decoder(AudioState *audio)
     wanted_spec.channels = audio->pCodecCtx->channels;
     wanted_spec.silence = 0;
     wanted_spec.samples = SDL_AUDIO_BUFFER_SIZE;
-    wanted_spec.callback = audio_frame_queue;
+    wanted_spec.callback = audio_callback;
     wanted_spec.userdata = audio;
     
     if(SDL_OpenAudio(&wanted_spec, &spec) < 0) {
@@ -368,6 +368,11 @@ int find_audio_decoder(AudioState *audio)
     }
     if(avcodec_open(audio->pCodecCtx, aCodec) < 0)
 	return 5;
+
+    audio->audio_buf_size = 0;
+    audio->audio_buf_index = 0;
+    memset(&audio->audio_pkt, 0, sizeof(audio->audio_pkt));
+    SDL_PauseAudio(0);
 
     return 0;
 }
@@ -435,6 +440,11 @@ int video_frame_queue(VideoState *video, AVFrame *pFrame)
     return 0;
 }
 
+int audio_frame_queue()
+{
+    
+}
+
 int init_screen(VideoState *video)
 {
     screen = SDL_SetVideoMode(video->pCodecCtx->width, video->pCodecCtx->height, 0, 0);
@@ -485,13 +495,9 @@ int play_video(void *arg)
     SDL_UnlockMutex(video->vFrameqMutex);
 }
 
-int play_audio(AudioState *audio)
+int play_audio()
 {
-    audio->audio_buf_size = 0;
-    audio->audio_buf_index = 0;
-    memset(&audio->audio_pkt, 0, sizeof(audio->audio_pkt));
-    SDL_PauseAudio(0);
-    return 0;
+    
 }
 
 int main(int argc, char **argv)
@@ -542,7 +548,6 @@ int main(int argc, char **argv)
     find_av_streams(file, video, audio);
     
     //find_audio_decoder(audio);
-    play_audio(audio);
     init_screen(video);
 
     read_pkt_tid = SDL_CreateThread(queue_av_pkt, state);
